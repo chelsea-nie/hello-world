@@ -1,0 +1,91 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  generation: 1
+  name: orion-gui-controller-all-in-one
+  namespace: orion
+  labels:
+    app: orion-gui-controller-all-in-one
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: orion-gui-controller-all-in-one
+  serviceName: orion-gui-controller-all-in-one
+  template:
+    metadata:
+      labels:
+        app: orion-gui-controller-all-in-one
+    spec:
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - env:
+          - name: EXPORTER_PORT
+            value: '9400'
+          - name: OrionX_Environment
+            value: 'TestingEnv_v5mZY9HQXUOvXj5wKE9lhw'
+          #image: 'virtaitech/orion-gui-controller-all-in-one:2.4.8'
+          image: 'hub.virtaitech.com/virtaitech/orion-gui-controller-all-in-one:2.4.8'
+          imagePullPolicy: IfNotPresent
+          name: orion-gui-controller-all-in-one
+          volumeMounts:
+            - mountPath: /root/license.txt
+              mountPropagation: None
+              name: orion-controller-license
+              subPath: license.txt
+            - mountPath: /root/data
+              mountPropagation: HostToContainer
+              name: mongodb-data
+            - mountPath: /root/etcd
+              mountPropagation: HostToContainer
+              name: controller-data
+            - mountPath: /prometheus
+              mountPropagation: HostToContainer
+              name: orion-prometheus-data
+          workingDir: /root
+      #nodeName: vhost-3
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 3
+      volumes:
+        - hostPath:
+            path: /root/all-in-one/volumes/license
+            type: DirectoryOrCreate
+          name: orion-controller-license
+        - hostPath:
+            path: /root/all-in-one/volumes/etcd
+            type: DirectoryOrCreate
+          name: controller-data
+        - hostPath:
+            path: /root/all-in-one/volumes/mongodb
+            type: DirectoryOrCreate
+          name: mongodb-data
+        - hostPath:
+            path: /root/all-in-one/volumes/prometheus
+            type: DirectoryOrCreate
+          name: orion-prometheus-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-gui-controller-all-in-one
+  namespace: orion
+  labels:
+    app: orion-gui-controller-all-in-one
+spec:
+  externalTrafficPolicy: Cluster
+  ports:
+    - name: orion-gui-controller-all-in-one-port
+      nodePort: 31123
+      port: 9123
+      protocol: TCP
+      targetPort: 9123
+    - name: orion-gui-port
+      nodePort: 31125
+      port: 9125
+      protocol: TCP
+      targetPort: 9125
+  selector:
+    app: orion-gui-controller-all-in-one
+  type: NodePort

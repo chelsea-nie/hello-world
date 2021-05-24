@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: orion-server
+  namespace: orion
+  labels:
+    k8s-app: virtaitech
+spec:
+  selector:
+    matchLabels:
+      name: orion-server
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ""
+      labels:
+        name: orion-server
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      hostIPC: true
+      hostPID: true
+      containers:
+      - image: harbor.virtaitech.com/virtaitech/orion-service-2.6.0-gcc4.8:cu9.0_9.1_9.2_10.0_10.1_10.2_11.0_11.1_ofed_4.7
+      #- image: harbor.virtaitech.com/virtaitech/orion-service-2.5.1-gcc4.8:cu90_92_100_101_102-py3.6
+        name: orion-server
+        #command: ["bash", "-c"]
+        #args: ["echo 'Sleeping for 3600 seconds ...'; sleep 3600s"]
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+        # resources:
+        #  limits:
+        volumeMounts:
+          - name: orioncomm
+            mountPath: "/var/tmp/orion/comm/"
+        env:
+        - name : ORION_CONTROLLER
+          #value : "orion-controller:9123"
+          value : "orion-gui-controller-all-in-one:9123"
+        - name : ORION_BIND_NET
+          value : "eth0"
+          # - name : ORION_BIND_HOSTNAME
+          # value : "true"
+        - name : ORION_SERVER_PORT
+          value : "9960"
+        - name : ORION_VGPU_COUNT
+          value : "2"
+        - name : ORION_LOG_LEVEL
+          value : "DEBUG"
+          #- name: ENABLE_ORION_EXPORTER
+          #value : "true"
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+      volumes:
+        - name: orioncomm
+          hostPath:
+            path: /var/tmp/orion/comm/

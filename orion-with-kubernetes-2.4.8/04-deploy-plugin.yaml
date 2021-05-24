@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: orion-plugin
+  namespace: orion
+  labels:
+    k8s-app: virtaitech
+spec:
+  selector:
+    matchLabels:
+      name: orion-plugin
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ""
+      labels:
+        name: orion-plugin
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - image: harbor.virtaitech.com/virtaitech/orion-plugin:2.1
+        name: orion-plugin
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+          - name: device-plugin
+            mountPath: /var/lib/kubelet/device-plugins
+        env:
+        - name : ORION_CONTROLLER
+          value : "orion-controller:9123"
+        - name: ORION_RES_NAME
+          value: virtaitech.com/gpu
+        - name: CONTROLLER_API_VERSION
+          value: '2.4'
+      terminationGracePeriodSeconds: 3
+      volumes:
+        - name: device-plugin
+          hostPath:
+            path: /var/lib/kubelet/device-plugins

@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: "orion-exporter"
+  namespace: orion
+  labels:
+    app.kubernetes.io/name: "orion-exporter"
+    app.kubernetes.io/version: "2.0.0-rc.12"
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "orion-exporter"
+      app.kubernetes.io/version: "2.0.0-rc.12"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "orion-exporter"
+        app.kubernetes.io/version: "2.0.0-rc.12"
+      name: "orion-exporter"
+    spec:
+      containers:
+      - image: harbor.virtaitech.com/virtaitech/orion-exporter:1.7.2
+        #- image: hub.virtaitech.com/virtaitech/orion-exporter:2.4.5
+        env:
+        - name: "ORION_SERVER_EXPORTER_LISTEN"
+          value: ":9100"
+        - name: "ORION_SERVER_EXPORTER_KUBERNETES"
+          value: "true"
+        - name: "ORION_SERVER_EXPORTER_COUNTER_FILE"
+          value: "/var/tmp/orion/export/export_counters"
+        - name: "ORION_SERVER_EXPORTER_LOG_FILE"
+          value: "/root/exporter.log"
+        name: "orion-server-exporter"
+        ports:
+        - name: "metrics"
+          containerPort: 9400
+          hostPort: 9400
+          #hostPort: 30100
+          protocol: TCP
+        securityContext:
+          runAsNonRoot: false
+          runAsUser: 0
+        volumeMounts:
+        - name: "pod-gpu-resources"
+          readOnly: true
+          mountPath: "/var/lib/kubelet/pod-resources"
+      volumes:
+      - name: "pod-gpu-resources"
+        hostPath:
+          path: "/var/lib/kubelet/pod-resources"

@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+  name: orion-runtime
+  namespace: orion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: orion-runtime
+  template:
+    metadata:
+      labels:
+        name: orion-runtime
+    spec:
+      hostNetwork: true
+      schedulerName: orion-scheduler
+      containers:
+      - name: orion-runtime
+        image: harbor.virtaitech.com/virtaitech/orion-client-2.6.0-gcc4.8:cuda10.2-tf1.14-py3.6-hvd
+        imagePullPolicy: Always
+        #imagePullPolicy: IfNotPresent
+        command: ["bash", "-c"]
+        args: ["while true; do sleep 30; done;"]
+        #resources:
+        #  limits:
+        #    virtaitech.com/gpu: 1
+        volumeMounts:
+            - name: orioncomm
+              mountPath: "/var/tmp/orion/comm/"
+        env:
+          - name : ORION_GMEM
+            value : "15000"
+          - name : ORION_RATIO
+            value : "100"
+          - name: ORION_VGPU
+            value: "1"
+          - name: ORION_RESERVED
+            value: "0"
+          - name: ORION_CROSS_NODE
+            value: "1"
+          - name : ORION_GROUP_ID
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.uid
+      volumes:
+        - name: orioncomm
+          hostPath:
+            path: /var/tmp/orion/comm/

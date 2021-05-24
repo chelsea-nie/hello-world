@@ -1,0 +1,124 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orion-scheduler
+  namespace: orion
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: orion-scheduler-cluster-admin
+  namespace: orion
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    namespace: orion
+    name: orion-scheduler
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orion-scheduler-config
+  namespace: orion
+data:
+  config.yaml: |
+    apiVersion: kubescheduler.config.k8s.io/v1alpha1
+    kind: KubeSchedulerConfiguration
+    schedulerName: orion-scheduler
+    algorithmSource:
+      policy:
+        configMap:
+          namespace: orion
+          name: orion-scheduler-policy
+    leaderElection:
+      leaderElect: true
+      lockObjectName: orion-scheduler
+      lockObjectNamespace: kube-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orion-scheduler-policy
+  namespace: orion
+data:
+ policy.cfg : |
+  {
+    "kind" : "Policy",
+    "apiVersion" : "v1",
+    "extenders" : [{
+      "urlPrefix": "http://localhost:8888",
+      "filterVerb": "filter",
+      "prioritizeVerb": "",
+      "preemptVerb": "",
+      "bindVerb": "",
+      "weight": 1,
+      "managedResources": [
+        {
+          "name": "virtaitech.com/gpu",
+          "ignoredByScheduler": false
+        }
+      ],
+      "enableHttps": false
+    }]
+  }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-scheduler
+  namespace: orion
+  labels:
+    app: orion-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orion-scheduler
+  template:
+    metadata:
+      labels:
+        app: orion-scheduler
+    spec:
+      serviceAccountName: orion-scheduler
+      volumes:
+      - name: orion-scheduler-config
+        configMap:
+          name: orion-scheduler-config
+      containers:
+      - name: orion-scheduler-ctr
+        image: registry.aliyuncs.com/google_containers/kube-scheduler:v1.18.12
+        imagePullPolicy: IfNotPresent
+        args:
+        - kube-scheduler
+        - --config=/orion-scheduler/config.yaml
+        - -v=4
+        volumeMounts:
+        - name: orion-scheduler-config
+          mountPath: /orion-scheduler
+      - name: orion-scheduler-extender-ctr
+        image: harbor.virtaitech.com/virtaitech/orion-scheduler-extender:2.4.5.2
+        imagePullPolicy: Always
+        env:
+          - name: ORION_CONTROLLER
+            #value: "orion-controller:9123"
+            value: "orion-gui-controller-all-in-one:9123"
+          - name: ORION_API_VERSION
+            value: "2.4"
+          - name: ORION_DATA_VERSION
+            value: "2.4"
+          - name: ORION_RES_NAME
+            value: "virtaitech.com/gpu"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8888
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8888
+        ports:
+          - containerPort: 8888
