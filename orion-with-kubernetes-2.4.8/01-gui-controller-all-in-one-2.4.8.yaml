@@ -24,8 +24,6 @@ spec:
         - env:
           - name: EXPORTER_PORT
             value: '9400'
-          - name: OrionX_Environment
-            value: 'TestingEnv_v5mZY9HQXUOvXj5wKE9lhw'
           #image: 'virtaitech/orion-gui-controller-all-in-one:2.4.8'
           image: 'hub.virtaitech.com/virtaitech/orion-gui-controller-all-in-one:2.4.8'
           imagePullPolicy: IfNotPresent
